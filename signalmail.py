@@ -93,6 +93,7 @@ try:
     mailsubject = config['MAIL']['mailsubject']
     mailsignature = config['MAIL']['mailsignature']
     bodyHeading = config['MAIL']['bodyheading']
+    quoteHeading = config['MAIL']['quoteheading']
     addr_list = config['MAIL']['addr_list']
     smtpserver = config['MAIL']['smtpserver']
     smtpuser = config['MAIL']['smtpuser']
@@ -273,6 +274,7 @@ def msgRcvV2 (timestamp, sender, groupId, message, extras):
     # de- and encode some of the given arguments to more convenient formats
     mentionList = extras.get("mentions", [])
     attachmentList = extras.get("attachments", [])
+
     groupIdEncoded = base64.b64encode(bytes(groupId)).decode("utf-8")
 
     if debug: print("timestamp: ", timestamp, " sender: ", sender, " groupId: ", groupId, " message: ", message, " attachmentList: ", attachmentList)
@@ -333,14 +335,40 @@ def msgRcvV2 (timestamp, sender, groupId, message, extras):
     # timestamp includes milliseconds, we have to strip them:
     timestamp = datetime.datetime.fromtimestamp(float(str(timestamp)[0:-3]), getLocalTimezone())
 
+    # extras:  {'quote': {'text': 'Das auch.', 'id': 1644850082393, 'author': '+4915165166660'}, 'isViewOnce': False, 'expiresInSeconds': 0}
+    quotedAuthorId = ''
+    quotedAuthorName = ''
+    quotedMessageId = ''
+    quotedText = ''
+    if "quote" in extras:
+        quotedText = extras["quote"]["text"]
+        quotedAuthorId = extras["quote"]["author"]
+        quotedMessageId = extras["quote"]["id"]
+        try:
+            quotedAuthorName = signal_client.getContactName(quotedAuthorId)
+        except:
+            quotedAuthorName = "unknown"
+
     replacements = {
         "{senderId}": sender,
         "{senderName}": sendername,
         "{groupId}": groupIdEncoded,
         "{groupName}": groupName,
         "{timestamp}": timestamp.strftime(timeformat),
+        "{quotedAuthorId}": quotedAuthorId,
+        "{quotedAuthorName}": quotedAuthorName,
+        "{quotedMessageId}": str(quotedMessageId),
     }
-    mailtext = replacePlaceholders(bodyHeading, replacements) + "\n" \
+
+    # optional quoted text to plug in before the new message
+    quote = ""
+    if not quotedText == "":
+        quote = replacePlaceholders(quoteHeading, replacements).strip() + "\n" \
+          + "> " + quotedText \
+          + "\n\n"
+
+    mailtext = replacePlaceholders(bodyHeading, replacements).strip() + "\n\n" \
+        + quote \
         + message \
         + "\n\n-- \n" + replacePlaceholders(mailsignature, replacements)
     if debug: print("## Message :")
@@ -352,7 +380,7 @@ def msgRcvV2 (timestamp, sender, groupId, message, extras):
         headerValue = replacePlaceholders(headerValue, replacements)
         if headerValue:
             extraHeaders[header] = headerValue
-    
+
     # send mail if activated:
     if sendmail == True:
         if debug: print("\nsignalmail is sending emails")
