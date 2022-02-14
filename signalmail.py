@@ -333,6 +333,7 @@ def msgRcvV2 (timestamp, sender, groupId, message, extras):
         if debug: print("DEBUG - msgRcvV2() final message is:", message)
 
     # timestamp includes milliseconds, we have to strip them:
+    rawTimestamp = timestamp
     timestamp = datetime.datetime.fromtimestamp(float(str(timestamp)[0:-3]), getLocalTimezone())
 
     # extras:  {'quote': {'text': 'Das auch.', 'id': 1644850082393, 'author': '+4915165166660'}, 'isViewOnce': False, 'expiresInSeconds': 0}
@@ -355,6 +356,7 @@ def msgRcvV2 (timestamp, sender, groupId, message, extras):
         "{groupId}": groupIdEncoded,
         "{groupName}": groupName,
         "{timestamp}": timestamp.strftime(timeformat),
+        "{timestampRaw}": str(rawTimestamp),
         "{quotedAuthorId}": quotedAuthorId,
         "{quotedAuthorName}": quotedAuthorName,
         "{quotedMessageId}": str(quotedMessageId),
